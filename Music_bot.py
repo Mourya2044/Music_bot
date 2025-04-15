@@ -2,9 +2,11 @@ import nextcord
 from nextcord import Interaction
 from nextcord.ext import commands
 import os
+from dotenv import load_dotenv
 
 
-TOKEN = 'MTEzODQ3MTI1ODk1NTE5NDUwMA.GNdmm3.yx2j4ZZ5pJwMdaUxPhb-rgbn_r1Fb9GOKEL90Y'
+load_dotenv()
+TOKEN = os.getenv('DISCORD_TOKEN')
 
 
 intents = nextcord.Intents.default()
