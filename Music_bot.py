@@ -28,16 +28,17 @@ async def test(interaction: Interaction):
  
 
 initial_extensions=[]  
-def load():
-    for filename in os.listdir('cogs'):
-        if filename.endswith('.py'):
-            extension = 'cogs.'+filename[:-3]
-            client.load_extension(extension)
-    return
+# def load():
+#     for filename in os.listdir('cogs'):
+#         if filename.endswith('.py'):
+#             extension = 'cogs.'+filename[:-3]
+#             client.load_extension(extension)
+#     return
 
     
-load()
-    
+# load()
+
+client.load_extension("cogs.Music_commands_slash_V2")    
 client.run(TOKEN)
 
     
