@@ -21,6 +21,9 @@ class Music_Controller(commands.Cog):
         self.shuffle = False
         self.tips = [
             "Use /play <song name> to play a song from YouTube.",
+            "Use /playlist <playlist URL> to play a YouTube playlist.",
+            "Use /shuffle to toggle shuffle mode.",
+            "Use /cancel_addition to cancel the ongoing playlist addition.",
             "Use /pause to pause the current song.",
             "Use /resume to resume the paused song.",
             "Use /next to skip to the next song in the queue.",
