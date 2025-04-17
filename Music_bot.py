@@ -34,8 +34,6 @@ initial_extensions=[]
 #             extension = 'cogs.'+filename[:-3]
 #             client.load_extension(extension)
 #     return
-
-    
 # load()
 
 client.load_extension("cogs.Music_commands_slash_V2")    
