@@ -351,7 +351,7 @@ class Music_Controller(commands.Cog):
             await interaction.send("You are not in a voice channel", delete_after=10)
 
     @nextcord.slash_command(name='playlist', description='Play a playlist from YouTube or Spotify')
-    async def playlist(self, interaction: Interaction, playlist_url: str = SlashOption(description="The URL of the playlist", required=True), start: int = SlashOption(description="The starting index of the playlist", required=True, default=0), limit: int = SlashOption(description="The number of tracks to play", required=False, default=10)):
+    async def playlist(self, interaction: Interaction, playlist_url: str = SlashOption(description="The URL of the playlist", required=True), start: int = SlashOption(description="The starting index of the playlist", required=False, default=0), limit: int = SlashOption(description="The number of tracks to play", required=False, default=10)):
         """Play tracks from a playlist with optional start/limit parameters"""
         # Validate parameters
         if start < 0:
