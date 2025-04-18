@@ -206,7 +206,7 @@ class Music_Controller(commands.Cog):
 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(playlist_url, download=False)
-                    all_entries = [entry.get('title', 'Unknown Title') 
+                    all_entries = [entry.get('title') 
                                   for entry in info.get('entries', []) 
                                   if entry]
 
