@@ -1,12 +1,28 @@
 # from signal import pause
 import nextcord
-from nextcord import Interaction
+from nextcord import Interaction, SlashOption
 from nextcord.ext import commands, tasks
 from nextcord import FFmpegPCMAudio
 import yt_dlp
 from datetime import timedelta
 import random
 import asyncio
+import os
+from dotenv import load_dotenv
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth
+
+
+load_dotenv()
+client_id=os.getenv('SPOTIFY_CLIENT_ID')
+client_secret=os.getenv('SPOTIFY_CLIENT_SECRET')
+
+sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
+    client_id=client_id,
+    client_secret=client_secret,
+    redirect_uri="http://localhost:8080",
+    scope="playlist-read-private playlist-read-collaborative"
+))
 
 class Music_Controller(commands.Cog):
     '''All music controller logic lies here'''    
@@ -98,70 +114,137 @@ class Music_Controller(commands.Cog):
         finally:
             self.paused = False
 
-    async def add_playlist_to_queue(self, interaction, playlist_url, sent):
-        try:
-            # Start the playlist addition task
-            if self.adding_playlist_task:
-                await sent.edit(content="🔴 Playlist addition is already in progress. Please wait or cancel it.")
+    async def add_playlist_to_queue(self, interaction, playlist_url, sent, start, limit):
+            """Main entry point for adding playlists to the queue"""
+            try:
+                if self.adding_playlist_task and not self.adding_playlist_task.done():
+                    await sent.edit(content="🔴 Playlist addition is already in progress. Please wait or cancel it.")
+                    return
 
-            # Define cancellation flag
-            self.cancel_addition = False
+                self.cancel_addition = False
+                self.adding_playlist_task = asyncio.create_task(
+                    self._process_playlist_addition(interaction, playlist_url, sent, start, limit)
+                )
 
-            async def add_songs():
+            except Exception as e:
+                await sent.edit(content=f"❌ Initialization Error: {e}")
+
+    async def _process_playlist_addition(self, interaction, playlist_url, sent, start, limit):
+            """Handles the actual playlist processing"""
+            try:
+                # Determine playlist type and get titles
+                if "spotify.com" in playlist_url:
+                    titles = await self._get_spotify_titles(playlist_url, start, limit)
+                elif "youtube.com" in playlist_url or "youtu.be" in playlist_url:
+                    titles = await self._get_youtube_titles(playlist_url, start, limit)
+                else:
+                    await sent.edit(content="❌ Unsupported playlist platform")
+                    return
+
+                if not titles:
+                    await sent.edit(content="⚠️ No tracks found in playlist")
+                    return
+
+                # Add tracks to queue
+                added_count = await self._add_tracks_from_list(interaction, titles, sent)
+                await sent.edit(content=f"✅ Added {added_count} tracks to queue")
+
+            except Exception as e:
+                await sent.edit(content=f"❌ Processing Error: {e}")
+            finally:
+                self.adding_playlist_task = None
+
+    async def _get_spotify_titles(self, playlist_url, start, limit):
+            """Get track titles from Spotify playlist with pagination"""
+            try:
+                playlist_id = playlist_url.split("/")[-1].split("?")[0]
+                titles = []
+                remaining = limit
+                offset = start
+
+                while remaining > 0:
+                    # Get up to 100 tracks per request (Spotify's max)
+                    batch_limit = min(remaining, 100)
+
+                    results = sp.playlist_items(
+                        playlist_id,
+                        fields="items.track.name,total,next",
+                        limit=batch_limit,
+                        offset=offset
+                    )
+
+                    batch = [
+                        item['track']['name']
+                        for item in results["items"]
+                        if item["track"]
+                    ]
+                    titles.extend(batch)
+
+                    # Update counters
+                    fetched = len(batch)
+                    remaining -= fetched
+                    offset += fetched
+
+                    # Break if no more tracks or partial response
+                    if fetched < batch_limit:
+                        break
+                    
+                return titles[:limit]  # Ensure we don't exceed requested limit
+
+            except Exception as e:
+                print(f"Spotify Error: {e}")
+                return []
+
+    async def _get_youtube_titles(self, playlist_url, start, limit):
+            """Get video titles from YouTube playlist with slicing"""
+            try:
+                ydl_opts = {
+                    'quiet': True,
+                    'extract_flat': True,
+                    'skip_download': True,
+                }
+
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(playlist_url, download=False)
+                    all_entries = [entry.get('title', 'Unknown Title') 
+                                  for entry in info.get('entries', []) 
+                                  if entry]
+
+                    # Apply start/limit with bounds checking
+                    end_index = start + limit
+                    return all_entries[start:end_index]
+
+            except Exception as e:
+                print(f"YouTube Error: {e}")
+                return []
+
+    async def _add_tracks_from_list(self, interaction, titles, sent):
+            """Add tracks to queue with progress tracking"""
+            guild_id = interaction.guild.id
+            self.queues.setdefault(guild_id, [])
+            added_count = 0
+
+            for i, title in enumerate(titles, 1):
+                if self.cancel_addition:
+                    await sent.edit(content="🛑 Addition cancelled")
+                    self.cancel_addition = False
+                    return added_count
+
                 try:
-                    flat_opts = {
-                        'quiet': False,
-                        'extract_flat': True,
-                        'skip_download': True,
-                        'forceurl': False,
-                    }
+                    await self.add_to_queue(interaction, title, sent)
+                    added_count += 1
 
-                    # Extract list of video entries (flat = metadata only)
-                    with yt_dlp.YoutubeDL(flat_opts) as flat_ydl:
-                        playlist_info = flat_ydl.extract_info(playlist_url, download=False)
-
-                    entries = playlist_info.get('entries', [])
-                    if not entries:
-                        await sent.edit(content="⚠️ No songs found in playlist.")
-                        return
-
-                    guild_id = interaction.guild.id
-                    if guild_id not in self.queues:
-                        self.queues[guild_id] = []
-
-                    # Process each video entry individually
-                    for i, entry in enumerate(entries):
-                        if self.cancel_addition:
-                            await sent.edit(content="🛑 Playlist addition canceled.")
-                            return
-
-                        try:
-                            if not entry:
-                                continue
-                            # song_url = entry.get('url')
-                            title = entry.get('title', 'Unknown Title')
-
-                            await self.add_to_queue(interaction, title, sent)
-
-                            # Send message for each song added
-                            await interaction.channel.send(f"✅ Added `{title}` to queue ({i + 1}/{len(entries)})")
-
-                        except Exception as e:
-                            print(f"⚠️ Failed to process song: {e}")
-                            continue
-
-                    await sent.edit(content=f"✅ Finished adding {len(self.queues[guild_id])} songs from playlist.")
-                    self.paused = False
+                    # Update progress every 10 tracks or on last track
+                    if i % 10 == 0 or i == len(titles):
+                        await sent.edit(
+                            content=f"⏳ Adding tracks... ({i}/{len(titles)})"
+                        )
 
                 except Exception as e:
-                    await sent.edit(content=f"❌ Error adding playlist: {e}")
+                    print(f"Skipped track {title}: {e}")
 
-            # Start the task to add songs
-            self.adding_playlist_task = asyncio.create_task(add_songs())
-
-        except Exception as e:
-            await sent.edit(content=f"❌ Error: {e}")
-
+            return added_count   
+        
     async def cancel_addition(self, interaction, sent):
         # Cancel the ongoing playlist addition task
         if self.adding_playlist_task and not self.adding_playlist_task.done():
@@ -249,8 +332,9 @@ class Music_Controller(commands.Cog):
         else:
             await interaction.send("No audio is paused", delete_after=5)
 
-    @nextcord.slash_command(name='play', description='Play a song from YouTube or play from queue')
-    async def play(self, interaction: Interaction, song: str):
+    @nextcord.slash_command(name='play', description='Play a song by Name')
+    async def play(self, interaction: Interaction, song: str = SlashOption(description="The name of the song", required=True)):
+        """Play a song from YouTube"""
         # Joining the voice channel if not already in one
         if interaction.user.voice:
             if not interaction.guild.voice_client:
@@ -266,22 +350,32 @@ class Music_Controller(commands.Cog):
         else:
             await interaction.send("You are not in a voice channel", delete_after=10)
 
-    @nextcord.slash_command(name='playlist', description='Play a playlist from YouTube')
-    async def playlist(self, interaction: Interaction, playlist_url: str):
-        # Joining the voice channel if not already in one
-        if interaction.user.voice:
-            if not interaction.guild.voice_client:
-                channel = interaction.user.voice.channel
-                await channel.connect()
-                sent = await interaction.send(f"Joined: {channel}\nAdding playlist...")
-            else:
-                sent = await interaction.send("Adding playlist...")
+    @nextcord.slash_command(name='playlist', description='Play a playlist from YouTube or Spotify')
+    async def playlist(self, interaction: Interaction, playlist_url: str = SlashOption(description="The URL of the playlist", required=True), start: int = SlashOption(description="The starting index of the playlist", required=True, default=0), limit: int = SlashOption(description="The number of tracks to play", required=False, default=10)):
+        """Play tracks from a playlist with optional start/limit parameters"""
+        # Validate parameters
+        if start < 0:
+            await interaction.send("❌ Start index cannot be negative", delete_after=10)
+            return
+        if limit <= 0:
+            await interaction.send("❌ Limit must be at least 1", delete_after=10)
+            return
 
-            await self.add_playlist_to_queue(interaction, playlist_url, sent)
-                
-        # If the user is not in a voice channel, send an error message
+        # Check voice channel
+        if not interaction.user.voice:
+            await interaction.send("❌ You must be in a voice channel", delete_after=10)
+            return
+
+        # Join voice channel if needed
+        if not interaction.guild.voice_client:
+            channel = interaction.user.voice.channel
+            await channel.connect()
+            sent = await interaction.send(f"🔊 Joined {channel.mention}\n⏳ Loading playlist...")
         else:
-            await interaction.send("You are not in a voice channel", delete_after=10)
+            sent = await interaction.send("⏳ Loading playlist...")
+
+        # Start playlist processing
+        await self.add_playlist_to_queue(interaction, playlist_url, sent, start, limit)
     
     @nextcord.slash_command(name='cancel_addition', description='Cancel the ongoing playlist addition')
     async def cancel_addition(self, interaction: Interaction):
