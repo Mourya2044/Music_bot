@@ -27,6 +27,7 @@ sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
 class Music_Controller(commands.Cog):
     '''All music controller logic lies here'''    
     def __init__(self, client):
+        """Initialize the Music_Controller cog"""
         self.client = client
         self.queues = {}  # {guild_id: [(url, title, thumbnail, duration)]}
         self.is_playing = False
@@ -50,6 +51,7 @@ class Music_Controller(commands.Cog):
         ]
     
     def _get_next_song(self, guild_id):
+        """ Get the next song from the queue """
         if self.queues.get(guild_id):
             if self.shuffle:
                 # Pick a random song if shuffle is on
@@ -60,8 +62,14 @@ class Music_Controller(commands.Cog):
                 song_info = self.queues[guild_id].pop(0)
             return song_info  # (channel, song_url, title, thumbnail, duration)
         return None
-
-    async def _play_song(self, channel, song_url, title, thumbnail, duration):
+    
+    def _download_song_info(self, song, ydl_opts):
+        """Download song info using yt-dlp"""
+        downloader = yt_dlp.YoutubeDL(ydl_opts)
+        return downloader.extract_info(f'ytsearch:{song}', download=False)
+    
+    async def _song_card(self, channel, song_url, title, thumbnail, duration):
+        """ Create a song card and send it to the channel """
         # Convert duration in seconds to mm:ss format
         formatted_duration = str(timedelta(seconds=duration))
         embed = nextcord.Embed(
@@ -76,6 +84,7 @@ class Music_Controller(commands.Cog):
         await channel.send(embed=embed)
 
     async def _add_to_queue(self, interaction, song, sent):
+        """ Adds a song to the queue and fetches its info """
         try:
             ydl_opts = {
                 'format': 'bestaudio[ext=webm]/bestaudio/best',
@@ -113,10 +122,6 @@ class Music_Controller(commands.Cog):
             await sent.edit(content=f"Error: {e}")
         finally:
             self.paused = False
-    
-    def _download_song_info(self, song, ydl_opts):
-        downloader = yt_dlp.YoutubeDL(ydl_opts)
-        return downloader.extract_info(f'ytsearch:{song}', download=False)
 
     async def _add_playlist_to_queue(self, interaction, playlist_url, sent, start, limit):
             """Main entry point for adding playlists to the queue"""
@@ -250,6 +255,7 @@ class Music_Controller(commands.Cog):
             return added_count   
         
     async def _cancel_addition_playlist(self, interaction, sent):
+        """Cancel the ongoing playlist addition task"""
         # Cancel the ongoing playlist addition task
         if self.adding_playlist_task and not self.adding_playlist_task.done():
             self.cancel_addition = True
@@ -260,6 +266,7 @@ class Music_Controller(commands.Cog):
     
     @tasks.loop(seconds=1)
     async def player_loop(self):
+        """Main loop for playing songs"""
         for guild in self.client.guilds:
             guild_id = guild.id
             voice_client = guild.voice_client
@@ -276,7 +283,7 @@ class Music_Controller(commands.Cog):
                     continue
 
                 channel, song_url, title, thumbnail, duration, yt_url = song_data
-                await self._play_song(channel, yt_url, title, thumbnail, duration) 
+                await self._song_card(channel, yt_url, title, thumbnail, duration) 
                 
                 def after_play(error):
                     if error:
@@ -296,6 +303,7 @@ class Music_Controller(commands.Cog):
 
     @nextcord.slash_command(name='join', description='Joins the voice channel')
     async def join(self, interaction: Interaction):
+        """Join the voice channel of the user"""
         if interaction.user.voice:
             channel = interaction.user.voice.channel
             await channel.connect()
@@ -305,6 +313,7 @@ class Music_Controller(commands.Cog):
 
     @nextcord.slash_command(name='leave', description='Leaves the voice channel and clears the queue')
     async def leave(self, interaction: Interaction):
+        """Leave the voice channel and clear the queue"""
         voice_client = interaction.guild.voice_client
 
         if voice_client:
@@ -316,9 +325,9 @@ class Music_Controller(commands.Cog):
         else:
             await interaction.send("⚠️ I'm not in a voice channel.")
 
-
     @nextcord.slash_command(name='pause', description='Pauses the currently playing song')
     async def pause(self, interaction: Interaction):
+        """Pause the currently playing song"""
         voice = interaction.guild.voice_client
         if voice.is_paused():
             await interaction.send("Already paused.", delete_after=5)
@@ -331,6 +340,7 @@ class Music_Controller(commands.Cog):
 
     @nextcord.slash_command(name='resume', description='Resumes the current paused song')
     async def resume(self, interaction: Interaction):
+        """Resume the currently paused song"""
         voice = interaction.guild.voice_client
         if voice and voice.is_paused():
             voice.resume()
@@ -385,6 +395,7 @@ class Music_Controller(commands.Cog):
     
     @nextcord.slash_command(name='cancel_addition', description='Cancel the ongoing playlist addition')
     async def cancel_addition(self, interaction: Interaction):
+        """Cancel the ongoing playlist addition"""
         voice_client = interaction.guild.voice_client
         if voice_client:
             sent = await interaction.send("Canceling playlist addition...")
@@ -394,12 +405,14 @@ class Music_Controller(commands.Cog):
             
     @nextcord.slash_command(name='shuffle', description='Toggles shuffle mode')
     async def toggle_shuffle(self, interaction: Interaction):
+        """Toggle shuffle mode for the queue"""
         self.shuffle = not self.shuffle  # Toggle shuffle mode
         status = "enabled" if self.shuffle else "disabled"
         await interaction.send(f"Shuffle mode has been {status}.")
     
     @nextcord.slash_command(name='next', description='Plays the next song in queue')
     async def next(self, interaction: Interaction):
+        """Play the next song in the queue"""
         voice_client = interaction.guild.voice_client
         guild_id = interaction.guild.id
         # Check if the bot is in a voice channel
@@ -420,6 +433,7 @@ class Music_Controller(commands.Cog):
 
     @nextcord.slash_command(name='queue', description='Shows all songs in the queue')
     async def show_queue(self, interaction: Interaction):
+        """Show the current queue of songs"""
         guild_id = interaction.guild.id
         song_list = "Current queue:\nshuffle: {}\n\n".format("enabled" if self.shuffle else "disabled")
         if self.queues.get(guild_id):
@@ -431,7 +445,11 @@ class Music_Controller(commands.Cog):
 
     @nextcord.slash_command(name='loop', description='Toggles loop for the current song')
     async def loop(self, interaction: Interaction):
-        pass
+        """Toggle loop for the current song"""
+        self.loopSong = not self.loopSong
+        status = "enabled" if self.loopSong else "disabled"
+        await interaction.send(f"Loop mode has been {status}.", delete_after=5)
 
 def setup(client):
+    """Load the Music_Controller cog"""
     client.add_cog(Music_Controller(client))
