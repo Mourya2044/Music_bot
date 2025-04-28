@@ -49,7 +49,7 @@ class Music_Controller(commands.Cog):
             "Use /join to join the voice channel you're in.",
         ]
     
-    def get_next_song(self, guild_id):
+    def _get_next_song(self, guild_id):
         if self.queues.get(guild_id):
             if self.shuffle:
                 # Pick a random song if shuffle is on
@@ -61,7 +61,7 @@ class Music_Controller(commands.Cog):
             return song_info  # (channel, song_url, title, thumbnail, duration)
         return None
 
-    async def play_song(self, channel, song_url, title, thumbnail, duration):
+    async def _play_song(self, channel, song_url, title, thumbnail, duration):
         # Convert duration in seconds to mm:ss format
         formatted_duration = str(timedelta(seconds=duration))
         embed = nextcord.Embed(
@@ -75,7 +75,7 @@ class Music_Controller(commands.Cog):
 
         await channel.send(embed=embed)
 
-    async def add_to_queue(self, interaction, song, sent):
+    async def _add_to_queue(self, interaction, song, sent):
         try:
             ydl_opts = {
                 'format': 'bestaudio[ext=webm]/bestaudio/best',
@@ -88,9 +88,9 @@ class Music_Controller(commands.Cog):
                 'skip_download': True
             }
             
-            downloader = yt_dlp.YoutubeDL(ydl_opts)
+            # downloader = yt_dlp.YoutubeDL(ydl_opts)
 
-            song_info = downloader.extract_info(f'ytsearch:{song}', download=False)
+            song_info = await asyncio.to_thread(self._download_song_info, song, ydl_opts)
             
             # print(f"Song info: {song_info}")
             
@@ -113,8 +113,12 @@ class Music_Controller(commands.Cog):
             await sent.edit(content=f"Error: {e}")
         finally:
             self.paused = False
+    
+    def _download_song_info(self, song, ydl_opts):
+        downloader = yt_dlp.YoutubeDL(ydl_opts)
+        return downloader.extract_info(f'ytsearch:{song}', download=False)
 
-    async def add_playlist_to_queue(self, interaction, playlist_url, sent, start, limit):
+    async def _add_playlist_to_queue(self, interaction, playlist_url, sent, start, limit):
             """Main entry point for adding playlists to the queue"""
             try:
                 if self.adding_playlist_task and not self.adding_playlist_task.done():
@@ -231,7 +235,7 @@ class Music_Controller(commands.Cog):
                     return added_count
 
                 try:
-                    await self.add_to_queue(interaction, title, sent)
+                    await self._add_to_queue(interaction, title, sent)
                     added_count += 1
 
                     # Update progress every 10 tracks or on last track
@@ -245,7 +249,7 @@ class Music_Controller(commands.Cog):
 
             return added_count   
         
-    async def cancel_addition(self, interaction, sent):
+    async def _cancel_addition_playlist(self, interaction, sent):
         # Cancel the ongoing playlist addition task
         if self.adding_playlist_task and not self.adding_playlist_task.done():
             self.cancel_addition = True
@@ -264,7 +268,7 @@ class Music_Controller(commands.Cog):
                 self.is_playing = True
                 print(f"Guild {guild.name}: Playing next song from queue.")
 
-                song_data = self.get_next_song(guild_id)
+                song_data = self._get_next_song(guild_id)
                 if song_data is None:
                     self.is_playing = False
                     self.paused = True
@@ -272,7 +276,7 @@ class Music_Controller(commands.Cog):
                     continue
 
                 channel, song_url, title, thumbnail, duration, yt_url = song_data
-                await self.play_song(channel, yt_url, title, thumbnail, duration) 
+                await self._play_song(channel, yt_url, title, thumbnail, duration) 
                 
                 def after_play(error):
                     if error:
@@ -286,7 +290,6 @@ class Music_Controller(commands.Cog):
                     )
                 except Exception as e:
                     print(f"⚠️ Error starting playback: {e}")
-
 
 
 # ================================================= COMMANDS ==================================================== 
@@ -317,6 +320,9 @@ class Music_Controller(commands.Cog):
     @nextcord.slash_command(name='pause', description='Pauses the currently playing song')
     async def pause(self, interaction: Interaction):
         voice = interaction.guild.voice_client
+        if voice.is_paused():
+            await interaction.send("Already paused.", delete_after=5)
+            return
         if voice and voice.is_playing():
             voice.pause()
             await interaction.send("Paused", delete_after=10)
@@ -340,11 +346,11 @@ class Music_Controller(commands.Cog):
             if not interaction.guild.voice_client:
                 channel = interaction.user.voice.channel
                 await channel.connect()
-                sent = await interaction.send(f"Joined: {channel}\nGetting the song...")
+                sent = await interaction.send(f"Joined: {channel}\nGetting the song: `{song}`")
             else:
-                sent = await interaction.send("Getting the song...")
+                sent = await interaction.send(f"Getting the song: `{song}`")
 
-            await self.add_to_queue(interaction, song, sent)
+            await self._add_to_queue(interaction, song, sent)
                 
         # If the user is not in a voice channel, send an error message
         else:
@@ -375,14 +381,14 @@ class Music_Controller(commands.Cog):
             sent = await interaction.send("⏳ Loading playlist...")
 
         # Start playlist processing
-        await self.add_playlist_to_queue(interaction, playlist_url, sent, start, limit)
+        await self._add_playlist_to_queue(interaction, playlist_url, sent, start, limit)
     
     @nextcord.slash_command(name='cancel_addition', description='Cancel the ongoing playlist addition')
     async def cancel_addition(self, interaction: Interaction):
         voice_client = interaction.guild.voice_client
         if voice_client:
             sent = await interaction.send("Canceling playlist addition...")
-            await self.cancel_addition(interaction, sent)
+            await self._cancel_addition_playlist(interaction, sent)
         else:
             await interaction.send("⚠️ I'm not in a voice channel.")
             
