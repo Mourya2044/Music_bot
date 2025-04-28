@@ -68,13 +68,13 @@ class Music_Controller(commands.Cog):
         downloader = yt_dlp.YoutubeDL(ydl_opts)
         return downloader.extract_info(f'ytsearch:{song}', download=False)
     
-    async def _song_card(self, channel, song_url, title, thumbnail, duration):
+    async def _song_card(self, channel, yt_url, title, thumbnail, duration):
         """ Create a song card and send it to the channel """
         # Convert duration in seconds to mm:ss format
         formatted_duration = str(timedelta(seconds=duration))
         embed = nextcord.Embed(
             title="🎶 Now Playing",
-            description=f"[{title}]({song_url})",
+            description=f"[{title}]({yt_url})",
             color=nextcord.Color.blurple()
         )
         embed.set_image(url=thumbnail)
