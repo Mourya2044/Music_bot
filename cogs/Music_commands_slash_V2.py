@@ -285,9 +285,13 @@ class Music_Controller(commands.Cog):
                 channel, song_url, title, thumbnail, duration, yt_url = song_data
                 await self._song_card(channel, yt_url, title, thumbnail, duration) 
                 
-                def after_play(error):
+                async def after_play(error):
                     if error:
                         print(f"Error playing song: {error}")
+                    if self.queues[guild_id].__len__() == 0:
+                        self.is_playing = False
+                        self.paused = True
+                        await channel.send("`⏭️ Queue is empty.`")
                     self.is_playing = False
                 
                 try:
