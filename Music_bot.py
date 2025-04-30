@@ -22,7 +22,7 @@ async def on_ready():
     print("-----------")
 
  
-@client.slash_command(name = "ping",description="Introduction to slash command")
+@client.slash_command(name = "ping",description="pongs you back")
 async def test(interaction: Interaction):
     await interaction.response.send_message("Pong!")
  
