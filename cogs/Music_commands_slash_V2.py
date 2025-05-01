@@ -88,7 +88,7 @@ class Music_Controller(commands.Cog):
         try:
             ydl_opts = {
                 'format': 'bestaudio[ext=webm]/bestaudio/best',
-                'quiet': False,
+                'quiet': True,
                 'noplaylist': True,
                 'extract_flat': False,
                 'default_search': 'auto',
