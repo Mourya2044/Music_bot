@@ -94,7 +94,8 @@ class Music_Controller(commands.Cog):
                 'default_search': 'auto',
                 'source_address': '0.0.0.0',  # Bind to IPv4 to avoid IPv6 issues
                 'forceurl': True,
-                'skip_download': True
+                'skip_download': True,
+                'cookiefile': 'cookies.txt',  # Use your cookie file if needed
             }
             
             # downloader = yt_dlp.YoutubeDL(ydl_opts)
