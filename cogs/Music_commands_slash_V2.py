@@ -16,6 +16,7 @@ from spotipy.oauth2 import SpotifyOAuth
 load_dotenv()
 client_id=os.getenv('SPOTIFY_CLIENT_ID')
 client_secret=os.getenv('SPOTIFY_CLIENT_SECRET')
+cookies=os.getenv('COOKIES')
 
 sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
     client_id=client_id,
@@ -95,7 +96,7 @@ class Music_Controller(commands.Cog):
                 'source_address': '0.0.0.0',  # Bind to IPv4 to avoid IPv6 issues
                 'forceurl': True,
                 'skip_download': True,
-                'cookiefile': 'cookies.txt',  # Use your cookie file if needed
+                'cookiefile': cookies,  # Use cookies for better access to content
             }
             
             # downloader = yt_dlp.YoutubeDL(ydl_opts)
