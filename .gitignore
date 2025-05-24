@@ -5,3 +5,6 @@ Music_commands_slash_V2.cpython-313.pyc
 .cache
 launch.vbs
 run.bat
+*.config
+*.zip
+cookies.txt
