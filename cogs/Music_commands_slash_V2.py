@@ -96,7 +96,7 @@ class Music_Controller(commands.Cog):
                 'source_address': '0.0.0.0',  # IPv4
                 'forceurl': True,
                 'skip_download': True,
-                'cookies': StringIO(cookies_text),
+                'cookies': StringIO(cookies),
                 'nocheckcertificate': True,   # Avoid SSL issues on Azure
             }
             
