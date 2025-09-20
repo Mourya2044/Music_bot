@@ -58,9 +58,10 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.__clientidsecretname__ }}
-          tenant-id: ${{ secrets.__tenantidsecretname__ }}
-          subscription-id: ${{ secrets.__subscriptionidsecretname__ }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_ABD2A320EB38463E98FF753A1BD0C8E8 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_16CC9B70AA724FD4A7955A704ABBC7CD }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C80F5100B6CD446D90E1B422B341EAA8 }}
+          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
@@ -70,4 +71,5 @@ jobs:
           slot-name: 'Production'
           package: .
           startup-command: 'python Music_bot.py'
+
 
