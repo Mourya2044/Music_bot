@@ -1,4 +1,4 @@
-# from signal import pause
+from io import StringIO
 import nextcord
 from nextcord import Interaction, SlashOption
 from nextcord.ext import commands, tasks
@@ -16,7 +16,7 @@ from spotipy.oauth2 import SpotifyOAuth
 load_dotenv()
 client_id=os.getenv('SPOTIFY_CLIENT_ID')
 client_secret=os.getenv('SPOTIFY_CLIENT_SECRET')
-# cookies=os.getenv('COOKIES')
+cookies=os.getenv('COOKIES')
 
 sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
     client_id=client_id,
@@ -96,6 +96,7 @@ class Music_Controller(commands.Cog):
                 'source_address': '0.0.0.0',  # IPv4
                 'forceurl': True,
                 'skip_download': True,
+                'cookies': StringIO(cookies_text),
                 'nocheckcertificate': True,   # Avoid SSL issues on Azure
             }
             
@@ -213,6 +214,7 @@ class Music_Controller(commands.Cog):
                     'quiet': True,
                     'extract_flat': True,
                     'skip_download': True,
+                    'nocheckcertificate': True,   # Avoid SSL issues on Azure
                 }
 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
