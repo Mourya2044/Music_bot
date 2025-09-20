@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
+if TOKEN is None:
+    raise ValueError("DISCORD_TOKEN environment variable not set.")
 
 
 intents = nextcord.Intents.default()

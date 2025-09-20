@@ -16,7 +16,7 @@ from spotipy.oauth2 import SpotifyOAuth
 load_dotenv()
 client_id=os.getenv('SPOTIFY_CLIENT_ID')
 client_secret=os.getenv('SPOTIFY_CLIENT_SECRET')
-cookies=os.getenv('COOKIES')
+# cookies=os.getenv('COOKIES')
 
 sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
     client_id=client_id,
