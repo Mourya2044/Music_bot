@@ -98,6 +98,7 @@ class Music_Controller(commands.Cog):
                 'skip_download': True,
                 'cookies': StringIO(cookies),
                 'nocheckcertificate': True,   # Avoid SSL issues on Azure
+                "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
             }
             
             # downloader = yt_dlp.YoutubeDL(ydl_opts)
@@ -215,6 +216,7 @@ class Music_Controller(commands.Cog):
                     'extract_flat': True,
                     'skip_download': True,
                     'cookies': StringIO(cookies),
+                    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
                     'nocheckcertificate': True,   # Avoid SSL issues on Azure
                 }
 
