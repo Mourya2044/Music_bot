@@ -4,3 +4,4 @@ PyNaCl
 ffmpeg
 python-dotenv
 spotipy
+flask

@@ -3,41 +3,35 @@ from nextcord import Interaction
 from nextcord.ext import commands
 import os
 from dotenv import load_dotenv
-
+from flask import Flask
+import threading
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
+# ---- Flask web server to keep app alive ----
+app = Flask(__name__)
+@app.route('/')
+def home():
+    return "Bot is running!"
+threading.Thread(target=lambda: app.run(host='0.0.0.0', port=8080)).start()
 
+# ---- Discord Bot ----
 intents = nextcord.Intents.default()
 intents.members = True
 intents.message_content = True
-
 client = commands.Bot(intents=intents)
 
 @client.event
 async def on_ready():
-    await client.change_presence(status=nextcord.Status.idle,activity=nextcord.Game('Music'))
+    await client.change_presence(status=nextcord.Status.idle, activity=nextcord.Game('Music'))
     print("Bot ready")
     print("-----------")
 
- 
-@client.slash_command(name = "ping",description="pongs you back")
+@client.slash_command(name="ping", description="Pongs you back")
 async def test(interaction: Interaction):
     await interaction.response.send_message("Pong!")
- 
 
-initial_extensions=[]  
-# def load():
-#     for filename in os.listdir('cogs'):
-#         if filename.endswith('.py'):
-#             extension = 'cogs.'+filename[:-3]
-#             client.load_extension(extension)
-#     return
-# load()
-
-client.load_extension("cogs.Music_commands_slash_V2")    
+client.load_extension("cogs.Music_commands_slash_V2")
 
 client.run(TOKEN)
-
-    
