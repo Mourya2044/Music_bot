@@ -11,6 +11,7 @@ import os
 from dotenv import load_dotenv
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
+import tempfile
 
 
 load_dotenv()
@@ -85,28 +86,28 @@ class Music_Controller(commands.Cog):
         await channel.send(embed=embed)
 
     async def _add_to_queue(self, interaction, song, sent):
-        """ Adds a song to the queue and fetches its info """
+        """Adds a song to the queue and fetches its info"""
         try:
+            cookies_str = os.getenv("COOKIES")  # your Netscape-format cookies
+            with tempfile.NamedTemporaryFile(mode="w+", delete=False) as f:
+                f.write(cookies_str)
+                cookies_path = f.name
+
             ydl_opts = {
                 'format': 'bestaudio[ext=webm]/bestaudio/best',
                 'quiet': True,
                 'noplaylist': True,
                 'extract_flat': False,
                 'default_search': 'auto',
-                'source_address': '0.0.0.0',  # IPv4
                 'forceurl': True,
                 'skip_download': True,
-                'cookies': StringIO(cookies),
-                'nocheckcertificate': True,   # Avoid SSL issues on Azure
+                'cookies': cookies_path,
+                'nocheckcertificate': True,
                 "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
             }
-            
-            # downloader = yt_dlp.YoutubeDL(ydl_opts)
 
             song_info = await asyncio.to_thread(self._download_song_info, song, ydl_opts)
-            
-            # print(f"Song info: {song_info}")
-            
+
             song_url = song_info['entries'][0]['url']
             title = song_info['entries'][0]['title']
             thumbnail = song_info['entries'][0]['thumbnail']
@@ -114,18 +115,19 @@ class Music_Controller(commands.Cog):
             yt_url = song_info['entries'][0]['webpage_url']
 
             guild_id = interaction.guild.id
-
             if guild_id not in self.queues:
                 self.queues[guild_id] = []
-                
+
             self.queues[guild_id].append((interaction.channel, song_url, title, thumbnail, duration, yt_url))
-            
             await sent.edit(content=f"Added `{title}` to queue")
 
         except Exception as e:
             await sent.edit(content=f"Error: {e}")
         finally:
             self.paused = False
+            if os.path.exists(cookies_path):
+                os.remove(cookies_path)
+
 
     async def _add_playlist_to_queue(self, interaction, playlist_url, sent, start, limit):
             """Main entry point for adding playlists to the queue"""
@@ -209,30 +211,38 @@ class Music_Controller(commands.Cog):
                 return []
 
     async def _get_youtube_titles(self, playlist_url, start, limit):
-            """Get video titles from YouTube playlist with slicing"""
-            try:
-                ydl_opts = {
-                    'quiet': True,
-                    'extract_flat': True,
-                    'skip_download': True,
-                    'cookies': StringIO(cookies),
-                    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
-                    'nocheckcertificate': True,   # Avoid SSL issues on Azure
-                }
+        """Get video titles from YouTube playlist with slicing"""
+        try:
+            cookies_str = os.getenv("COOKIES")
+            with tempfile.NamedTemporaryFile(mode="w+", delete=False) as f:
+                f.write(cookies_str)
+                cookies_path = f.name
 
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(playlist_url, download=False)
-                    all_entries = [entry.get('title') 
-                                  for entry in info.get('entries', []) 
-                                  if entry]
+            ydl_opts = {
+                'quiet': True,
+                'extract_flat': True,
+                'skip_download': True,
+                'cookies': cookies_path,
+                "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+                'nocheckcertificate': True,
+            }
 
-                    # Apply start/limit with bounds checking
-                    end_index = start + limit
-                    return all_entries[start:end_index]
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(playlist_url, download=False)
+                all_entries = [entry.get('title') 
+                            for entry in info.get('entries', []) 
+                            if entry]
 
-            except Exception as e:
-                print(f"YouTube Error: {e}")
-                return []
+                end_index = start + limit
+                return all_entries[start:end_index]
+
+        except Exception as e:
+            print(f"YouTube Error: {e}")
+            return []
+        finally:
+            if os.path.exists(cookies_path):
+                os.remove(cookies_path)
+
 
     async def _add_tracks_from_list(self, interaction, titles, sent):
             """Add tracks to queue with progress tracking"""
