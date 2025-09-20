@@ -4,7 +4,7 @@ from nextcord.ext import commands
 import os
 from dotenv import load_dotenv
 from flask import Flask
-import threading
+from multiprocessing import Process
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -14,7 +14,11 @@ app = Flask(__name__)
 @app.route('/')
 def home():
     return "Bot is running!"
-threading.Thread(target=lambda: app.run(host='0.0.0.0', port=8000)).start()
+
+def run_flask():
+    app.run(host='0.0.0.0', port=8000, use_reloader=False)
+
+Process(target=run_flask).start()
 
 # ---- Discord Bot ----
 intents = nextcord.Intents.default()
