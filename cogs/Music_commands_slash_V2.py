@@ -214,6 +214,7 @@ class Music_Controller(commands.Cog):
                     'quiet': True,
                     'extract_flat': True,
                     'skip_download': True,
+                    'cookies': StringIO(cookies),
                     'nocheckcertificate': True,   # Avoid SSL issues on Azure
                 }
 
