@@ -17,7 +17,7 @@ import tempfile
 load_dotenv()
 client_id=os.getenv('SPOTIFY_CLIENT_ID')
 client_secret=os.getenv('SPOTIFY_CLIENT_SECRET')
-cookies=os.getenv('COOKIES')
+# cookies=os.getenv('COOKIES')
 
 sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
     client_id=client_id,
@@ -88,10 +88,10 @@ class Music_Controller(commands.Cog):
     async def _add_to_queue(self, interaction, song, sent):
         """Adds a song to the queue and fetches its info"""
         try:
-            cookies_str = os.getenv("COOKIES")  # your Netscape-format cookies
-            with tempfile.NamedTemporaryFile(mode="w+", delete=False) as f:
-                f.write(cookies_str)
-                cookies_path = f.name
+            # cookies_str = os.getenv("COOKIES")  # your Netscape-format cookies
+            # with tempfile.NamedTemporaryFile(mode="w+", delete=False) as f:
+            #     f.write(cookies_str)
+            #     cookies_path = f.name
 
             ydl_opts = {
                 'format': 'bestaudio[ext=webm]/bestaudio/best',
@@ -101,7 +101,7 @@ class Music_Controller(commands.Cog):
                 'default_search': 'auto',
                 'forceurl': True,
                 'skip_download': True,
-                'cookies': cookies_path,
+                # 'cookies': cookies_path,
                 'nocheckcertificate': True,
                 "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
             }
@@ -125,8 +125,8 @@ class Music_Controller(commands.Cog):
             await sent.edit(content=f"Error: {e}")
         finally:
             self.paused = False
-            if os.path.exists(cookies_path):
-                os.remove(cookies_path)
+            # if os.path.exists(cookies_path):
+            #     os.remove(cookies_path)
 
 
     async def _add_playlist_to_queue(self, interaction, playlist_url, sent, start, limit):

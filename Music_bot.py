@@ -10,15 +10,15 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
 # ---- Flask web server to keep app alive ----
-app = Flask(__name__)
-@app.route('/')
-def home():
-    return "Bot is running!"
+# app = Flask(__name__)
+# @app.route('/')
+# def home():
+#     return "Bot is running!"
 
-def run_flask():
-    app.run(host='0.0.0.0', port=8000, use_reloader=False)
+# def run_flask():
+#     app.run(host='0.0.0.0', port=8000, use_reloader=False)
 
-Process(target=run_flask).start()
+# Process(target=run_flask).start()
 
 # ---- Discord Bot ----
 intents = nextcord.Intents.default()
